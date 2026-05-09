@@ -1,0 +1,41 @@
+name: Mac mini refurb watcher
+
+on:
+  schedule:
+    # Every 10 minutes. GitHub may delay this during high load — that's fine.
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}  # lets you run it manually from the Actions tab
+
+permissions:
+  contents: write  # needed to commit seen.json back to the repo
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run watcher
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PRICE_CAP: "800"
+          MODEL_FILTER: "M4"
+        run: python check.py
+
+      - name: Commit seen.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain seen.json)" ]; then
+            git add seen.json
+            git commit -m "Update seen listings"
+            git push
+          else
+            echo "No changes to seen.json"
+          fi
